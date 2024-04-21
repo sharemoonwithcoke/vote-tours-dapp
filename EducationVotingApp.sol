@@ -20,9 +20,8 @@ contract EducationVoting {
     
     // Function to create a new poll
     function createPoll(string memory _title, string[] memory _options) public {
-        polls.push();
+        Poll storage poll = polls.push();
         uint pollId = polls.length - 1;
-        Poll storage poll = polls[pollId];
         poll.title = _title;
         poll.options = _options;
         poll.isActive = true;
@@ -37,7 +36,7 @@ contract EducationVoting {
 
         hasVoted[msg.sender][_pollId] = true;
         polls[_pollId].votes[_optionId]++;
-        
+
         emit Voted(_pollId, _optionId, msg.sender);
     }
 
@@ -52,6 +51,22 @@ contract EducationVoting {
         require(polls[_pollId].isActive, "Poll is already closed.");
         polls[_pollId].isActive = false;
         emit PollClosed(_pollId);
+    }
+
+    // Function to get the number of polls
+    function getPollsCount() public view returns (uint) {
+        return polls.length;
+    }
+
+    // Function to get detailed information of a poll including votes for each option
+    function getPollDetails(uint _pollId) public view returns (string memory, string[] memory, bool, uint[] memory) {
+        require(_pollId < polls.length, "Poll ID out of range.");
+        Poll storage poll = polls[_pollId];
+        uint[] memory votes = new uint[](poll.options.length);
+        for (uint i = 0; i < poll.options.length; i++) {
+            votes[i] = poll.votes[i];
+        }
+        return (poll.title, poll.options, poll.isActive, votes);
     }
 }
 
