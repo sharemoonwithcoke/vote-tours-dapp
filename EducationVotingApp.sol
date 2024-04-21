@@ -1,95 +1,57 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+contract EducationVoting {
 
-contract EducationVotingApp{
-    struct Voter {
-        bool voted;
-        uint role; 
+    struct Poll {
+        string title;
+        string[] options;
+        bool isActive;
+        mapping(uint => uint) votes; // optionId => vote count
     }
 
-    struct Option {
-        string name;
-        uint voteCount;
+    Poll[] public polls;
+    mapping(address => mapping(uint => bool)) public hasVoted; // voter => pollId => voted
+
+    // Events for logging activities
+    event PollCreated(uint pollId, string title);
+    event Voted(uint pollId, uint optionId, address voter);
+    event PollClosed(uint pollId);
+    
+    // Function to create a new poll
+    function createPoll(string memory _title, string[] memory _options) public {
+        polls.push();
+        uint pollId = polls.length - 1;
+        Poll storage poll = polls[pollId];
+        poll.title = _title;
+        poll.options = _options;
+        poll.isActive = true;
+        emit PollCreated(pollId, _title);
     }
 
-    enum Topic { Course, Method, Content }
+    // Function to vote on a poll option
+    function vote(uint _pollId, uint _optionId) public {
+        require(polls[_pollId].isActive, "Poll is not active.");
+        require(!hasVoted[msg.sender][_pollId], "Already voted.");
+        require(_optionId < polls[_pollId].options.length, "Invalid option.");
 
-    mapping(address => Voter) public voters;
-    Option[] public courses;
-    Option[] public methods;
-    mapping(uint => Option[]) public contentOptions;
-
-    address public admin;
-
-    constructor() {
-    }
-        admin = msg.sender;
-      
-        addOption(courses, "History");
-        addOption(courses, "Physics");
-        addOption(courses, "Philosophy");
-        addOption(courses, "Computer Science");
-
-        addOption(methods, "Lecture");
-        addOption(methods, "Group Discussion");
-        addOption(methods, "Experiment");
-        addOption(methods, "Project");
-
-       
-        addContentOption(0, "World History");
-        addContentOption(0, "National History");
-        addContentOption(1, "Quantum Physics");
-        addContentOption(1, "Classical Physics");
-        addContentOption(2, "Dialectic Thinking");
-        addContentOption(2, "History of Philosophy");
-        addContentOption(3, "Java Programming");
-        addContentOption(3, "Web Development");
+        hasVoted[msg.sender][_pollId] = true;
+        polls[_pollId].votes[_optionId]++;
+        
+        emit Voted(_pollId, _optionId, msg.sender);
     }
 
-    function addOption(Option[] storage optionsArray, string memory name) private {
-        optionsArray.push(Option(name, 0));
+    // Function to get total votes for an option in a poll
+    function getVotes(uint _pollId, uint _optionId) public view returns (uint) {
+        require(_optionId < polls[_pollId].options.length, "Invalid option.");
+        return polls[_pollId].votes[_optionId];
     }
 
-    function addContentOption(uint courseIndex, string memory contentName) private {
-        contentOptions[courseIndex].push(Option(contentName, 0));
-    }
-
-    modifier onlyAdmin() {
-        require(msg.sender == admin, "Only admin can perform this action");
-        _;
-    }
-
-    function registerVoter(address voter, uint role) public onlyAdmin {
-        require(!voters[voter].voted, "Voter already registered");
-        voters[voter].role = role;
-    }
-
-    function vote(uint topic, uint optionId) public {
-        require(!voters[msg.sender].voted, "Already voted");
-        voters[msg.sender].voted = true;
-
-        if (topic == uint(Topic.Course)) {
-            require(voters[msg.sender].role == 1 || voters[msg.sender].role == 2 || voters[msg.sender].role == 3, "Unauthorized role for this vote");
-            courses[optionId].voteCount++;
-        } else if (topic == uint(Topic.Method)) {
-            require(voters[msg.sender].role == 1 || voters[msg.sender].role == 2, "Unauthorized role for this vote");
-            methods[optionId].voteCount++;
-        } else if (topic == uint(Topic.Content)) {
-            require(voters[msg.sender].role == 1, "Unauthorized role for this vote");
-            contentOptions[optionId / 10][optionId % 10].voteCount++;
-        }
-    }
-
-    function getVoteCounts(uint topic, uint optionId) public view returns (uint) {
-        if (topic == uint(Topic.Course)) {
-            return courses[optionId].voteCount;
-        } else if (topic == uint(Topic.Method)) {
-            return methods[optionId].voteCount;
-        } else if (topic == uint(Topic.Content)) {
-            return contentOptions[optionId / 10][optionId % 10].voteCount;
-        }
-        return 0;
+    // Function to close a poll
+    function closePoll(uint _pollId) public {
+        require(polls[_pollId].isActive, "Poll is already closed.");
+        polls[_pollId].isActive = false;
+        emit PollClosed(_pollId);
     }
 }
 
